@@ -1,5 +1,5 @@
+import re
 import datetime
-from BankStatements import BankStatements
 
 MIN_COLUMNS = 8
 MAX_COLUMNS = 9
@@ -7,17 +7,22 @@ MAX_COLUMNS = 9
 HEADER = set(['S No.', 'Value Date', 'Transaction Date', 'Cheque Number',
               'Transaction Remarks', 'Withdrawal Amount', 'Deposit Amount', 'Balance (INR )'])
 
+MAX_START_DAY_OF_MONTH = 5
+MIN_END_DAY_OF_MONTH = 25
 
-class ICICIBankStatements(BankStatements):
+
+class ICICIBankStatements(object):
     """Class to analyse the data obtained from ICICI Bank"""
 
-    def __init__(self, pdf_path):
-        super(ICICIBankStatements, self).__init__(pdf_path)
+    def __init__(self, raw_table_data, pdf_text):
+        self.raw_table_data = raw_table_data
+        self.pdf_text = pdf_text
         self.statements = []
         self.transactions = {}
         self.__set_statements_and_transaction()
         self.stats = {}
         self.all_day_transactions = self.__get_all_day_transactions()
+        self.__set_pdf_text_stats()
         self.__set_stats()
 
     def __get_statement_set_transaction(self, data_list):
@@ -54,12 +59,26 @@ class ICICIBankStatements(BankStatements):
         return statement_dict
 
     def __set_statements_and_transaction(self):
-        for data_list in self.raw_data.get('body', []):
+        for data_list in self.raw_table_data.get('body', []):
             if MIN_COLUMNS <= len(data_list) <= MAX_COLUMNS and not HEADER.intersection(set(data_list)):
                 statement_dict = self.__get_statement_set_transaction(
                     data_list)
                 self.statements.append(
                     statement_dict) if statement_dict else None
+
+    def __set_pdf_text_stats(self):
+        all_string_date_list = re.findall(r'(\d+/\d+/\d+)', self.pdf_text)
+        all_date_list = []
+        for string_date in all_string_date_list:
+            try:
+                all_date_list.append(
+                    datetime.datetime.strptime(string_date, '%d/%m/%Y'))
+            except Exception as e:
+                pass
+            self.stats['pdf_text_start_date'] = min(
+                all_date_list) if all_date_list else self.stats['start_date']
+            self.stats['pdf_text_end_date'] = max(
+                all_date_list) if all_date_list else self.stats['end_date']
 
     def __get_all_day_transactions(self):
         all_day_transactions = {}
@@ -77,19 +96,19 @@ class ICICIBankStatements(BankStatements):
         return all_day_transactions
 
     def __min_date(self):
-        if self.stats['start_date'].day == 1:
-            return self.stats['start_date']
+        if self.stats['pdf_text_start_date'].day <= MAX_START_DAY_OF_MONTH:
+            return self.stats['pdf_text_start_date']
         day = 1
-        month = self.stats['start_date'].month + \
-            1 if self.stats['start_date'].month != 12 else 1
-        year = self.stats['start_date'].year if self.stats[
-            'start_date'].month != 12 else self.stats['start_date'].year + 1
+        month = self.stats['pdf_text_start_date'].month + \
+            1 if self.stats['pdf_text_start_date'].month != 12 else 1
+        year = self.stats['pdf_text_start_date'].year if self.stats[
+            'pdf_text_start_date'].month != 12 else self.stats['pdf_text_start_date'].year + 1
         return datetime.datetime(year, month, day)
 
     def __max_date(self):
-        if self.stats['end_date'].day >= 25:
-            return self.stats['end_date']
-        return datetime.datetime(self.stats['end_date'].year, self.stats['end_date'].month, 1) - datetime.timedelta(days=1)
+        if self.stats['pdf_text_end_date'].day >= MIN_END_DAY_OF_MONTH:
+            return self.stats['pdf_text_end_date']
+        return datetime.datetime(self.stats['pdf_text_end_date'].year, self.stats['pdf_text_end_date'].month, 1) - datetime.timedelta(days=1)
 
     def get_days_above_given_balance_unpartial_months(self, given_balance):
         min_date = self.__min_date()
