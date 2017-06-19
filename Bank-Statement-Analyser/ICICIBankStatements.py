@@ -21,8 +21,8 @@ class ICICIBankStatements(object):
         self.transactions = {}
         self.__set_statements_and_transaction()
         self.stats = {}
-        self.all_day_transactions = self.__get_all_day_transactions()
         self.__set_pdf_text_stats()
+        self.all_day_transactions = self.__get_all_day_transactions()
         self.__set_stats()
 
     def __get_statement_set_transaction(self, data_list):
@@ -67,6 +67,8 @@ class ICICIBankStatements(object):
                     statement_dict) if statement_dict else None
 
     def __set_pdf_text_stats(self):
+        self.stats['start_date'] = min(self.transactions.keys())
+        self.stats['end_date'] = max(self.transactions.keys())
         all_string_date_list = re.findall(r'(\d+/\d+/\d+)', self.pdf_text)
         all_date_list = []
         for string_date in all_string_date_list:
@@ -75,19 +77,23 @@ class ICICIBankStatements(object):
                     datetime.datetime.strptime(string_date, '%d/%m/%Y'))
             except Exception as e:
                 pass
-            self.stats['pdf_text_start_date'] = min(
-                all_date_list) if all_date_list else self.stats['start_date']
-            self.stats['pdf_text_end_date'] = max(
-                all_date_list) if all_date_list else self.stats['end_date']
+        self.stats['pdf_text_start_date'] = min(
+            all_date_list) if all_date_list else self.stats['start_date']
+        self.stats['pdf_text_end_date'] = max(
+            all_date_list) if all_date_list else self.stats['end_date']
+        self.stats['days'] = (self.stats['pdf_text_end_date'] -
+                              self.stats['pdf_text_start_date'] + datetime.timedelta(1)).days
+        print self.stats
+
+    def __get_first_day_balance(self):
+        if self.stats['start_date'] == self.stats['pdf_text_start_date']:
+            return self.transactions[self.stats['start_date']]
+        return float(self.statements[0].get('balance', '0.0')) - float(self.statements[0].get('deposit_amount', '0.0')) + float(self.statements[0].get('withdrawal_amount', '0.0'))
 
     def __get_all_day_transactions(self):
         all_day_transactions = {}
-        self.stats['start_date'] = min(self.transactions.keys())
-        self.stats['end_date'] = max(self.transactions.keys())
-        self.stats['days'] = (
-            self.stats['end_date'] - self.stats['start_date'] + datetime.timedelta(1)).days
-        all_day_transactions[self.stats['start_date']
-                             ] = self.transactions[self.stats['start_date']]
+        all_day_transactions[self.stats[
+            'pdf_text_start_date']] = self.__get_first_day_balance()
         for day_no in xrange(1, self.stats['days']):
             day_date = self.stats['start_date'] + \
                 datetime.timedelta(days=day_no)
