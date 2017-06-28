@@ -10,6 +10,7 @@ from pdfminer.pdfpage import PDFPage
 from tabula import read_pdf
 
 from ICICIBankStatements import ICICIBankStatements
+from HDFCBankStatements import HDFCBankStatements
 
 
 class BankStatements(object):
@@ -26,6 +27,17 @@ class BankStatements(object):
             },
             'output_format': 'json'
         }
+        self.bank_dict = {
+            'icici': {
+                'unique_header': 'Transaction Remarks',
+                'class': ICICIBankStatements,
+            },
+            'hdfc': {
+                'unique_header': 'Narration',
+                'class': HDFCBankStatements,
+            }
+        }
+        self.banks = ['icici', 'hdfc']
         self.pdf_json = self.__get_pdf_json()
         self.raw_table_data = self.__get_raw_table_data()
         self.pdf_text = self.__get_pdf_text()
@@ -90,14 +102,14 @@ class BankStatements(object):
         output.close
         return text
 
-    def __is_icici(self):
+    def __term_in_header(self, term):
         for header in self.raw_table_data['headers']:
-            if re.search('Transaction Remarks', header, re.IGNORECASE):
+            if re.search(term, header, re.IGNORECASE):
                 return True
         return False
 
     def __get_specific_bank(self):
-        if self.__is_icici():
-            return ICICIBankStatements(self.raw_table_data, self.pdf_text)
-        else:
-            return None
+        for bank in self.banks:
+            if self.__term_in_header(self.bank_dict[bank]['unique_header']):
+                return self.bank_dict[bank]['class'](self.raw_table_data, self.pdf_text)
+        return None
