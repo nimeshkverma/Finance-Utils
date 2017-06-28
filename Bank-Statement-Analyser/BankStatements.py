@@ -11,6 +11,8 @@ from tabula import read_pdf
 
 from ICICIBankStatements import ICICIBankStatements
 from HDFCBankStatements import HDFCBankStatements
+from AXISBankStatements import AXISBankStatements
+from SBIBankStatements import SBIBankStatements
 
 
 class BankStatements(object):
@@ -25,7 +27,8 @@ class BankStatements(object):
             'pandas_options': {
                 'error_bad_lines': False
             },
-            'output_format': 'json'
+            'password': self.password,
+            'output_format': 'json',
         }
         self.bank_dict = {
             'icici': {
@@ -35,9 +38,17 @@ class BankStatements(object):
             'hdfc': {
                 'unique_header': 'Narration',
                 'class': HDFCBankStatements,
+            },
+            'axis': {
+                'unique_header': 'Particulars',
+                'class': AXISBankStatements,
+            },
+            'sbi': {
+                'unique_header': 'Description',
+                'class': SBIBankStatements,
             }
         }
-        self.banks = ['icici', 'hdfc']
+        self.banks = ['icici', 'hdfc', 'axis', 'sbi']
         self.pdf_json = self.__get_pdf_json()
         self.raw_table_data = self.__get_raw_table_data()
         self.pdf_text = self.__get_pdf_text()
