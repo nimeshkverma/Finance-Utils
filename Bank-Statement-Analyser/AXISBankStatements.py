@@ -12,7 +12,7 @@ MIN_END_DAY_OF_MONTH = 25
 
 
 class AXISBankStatements(object):
-    """Class to analyse the data obtained from HDFC Bank"""
+    """Class to analyse the data obtained from AXIS Bank"""
 
     def __init__(self, raw_table_data, pdf_text):
         self.raw_table_data = raw_table_data
